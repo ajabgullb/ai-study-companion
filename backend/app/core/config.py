@@ -1,0 +1,152 @@
+"""Application configuration management.
+
+This module handles environment-specific configuration loading, parsing, and management
+for the application. It includes environment detection, .env file loading, and
+configuration value parsing.
+"""
+
+import os
+from enum import Enum
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+# Define environment types
+class Environment(str, Enum):
+  """Application environment types.
+
+  Defines the possible environments the application can run in:
+  development, staging, production, and test.
+  """
+
+  DEVELOPMENT = "development"
+  STAGING = "staging"
+  PRODUCTION = "production"
+  TEST = "test"
+
+
+# Determine environment
+def get_environment() -> Environment:
+  """Get the current environment.
+
+  Returns:
+    Environment: The current environment (development, staging, production, or test)
+  """
+  match os.getenv("APP_ENV", "development").lower():
+    case "production" | "prod":
+      return Environment.PRODUCTION
+    case "staging" | "stage":
+      return Environment.STAGING
+    case "test":
+      return Environment.TEST
+    case _:
+      return Environment.DEVELOPMENT
+
+
+# Load appropriate .env file based on environment
+def load_env_file():
+  """Load environment-specific .env file."""
+  env = get_environment()
+  print(f"Loading environment: {env}")
+  base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+
+  # Define env files in priority order
+  env_files = [
+    os.path.join(base_dir, f".env.{env.value}.local"),
+    os.path.join(base_dir, f".env.{env.value}"),
+    os.path.join(base_dir, ".env.local"),
+    os.path.join(base_dir, ".env"),
+  ]
+
+  # Load the first env file that exists
+  for env_file in env_files:
+    if os.path.isfile(env_file):
+      load_dotenv(dotenv_path=env_file)
+      print(f"Loaded environment from {env_file}")
+      return env_file
+
+  # Fall back to default if no env file found
+  return None
+
+
+ENV_FILE = load_env_file()
+
+# Parse list values from environment variables
+def parse_list_from_env(env_key, default=None):
+  """Parse a comma-separated list from an environment variable."""
+  value = os.getenv(env_key)
+  
+  if not value:
+    return default or []
+
+  # Remove quotes if they exist
+  value = value.strip("\"'")
+  # Handle single value case
+  if "," not in value:
+    return [value]
+  
+  # Split comma-separated values
+  return [item.strip() for item in value.split(",") if item.strip()]
+
+
+class Settings:
+  """Application settings without using pydantic."""
+
+  def __init__(self) -> None:
+    """Initialize application settings from environment variables.
+
+    Loads and sets all configuration values from environment variables,
+    with appropriate defaults for each setting. Also applies
+    environment-specific overrides based on the current environment.
+    """
+
+    # Set the environment
+    self.ENVIRONMENT = get_environment()
+
+    # Application Settings
+    self.PROJECT_NAME = os.getenv("PROJECT_NAME", "FastAPI LangGraph Template")
+    self.VERSION = os.getenv("VERSION", "1.0.0")
+    self.DESCRIPTION = os.getenv(
+      "DESCRIPTION", "A production-ready FastAPI template with LangGraph and Langfuse integration"
+    )
+    self.API_V1_STR = os.getenv("API_V1_STR", "/api/v1")
+    self.DEBUG = os.getenv("DEBUG", "false").lower() in ("true", "1", "t", "yes")
+
+    # CORS Settings
+    self.ALLOWED_ORIGINS = parse_list_from_env("ALLOWED_ORIGINS", ["*"])
+
+    self.SUPABASE_URL = os.getenv("SUPABASE_URL", "Supabase url")
+    self.SUPABASE_PUBLISHABLE_KEY = os.getenv("SUPABASE_PUBLISHABLE_KEY", "Supabase Public Key")
+    self.SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY", "Supabase Anon Key")
+
+    # JWT Configuration
+    self.JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "")
+    self.JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
+    self.JWT_ACCESS_TOKEN_EXPIRE_DAYS = int(os.getenv("JWT_ACCESS_TOKEN_EXPIRE_DAYS", "30"))
+
+    # Rate Limiting Configuration
+    self.RATE_LIMIT_DEFAULT = parse_list_from_env("RATE_LIMIT_DEFAULT", ["200 per day", "50 per hour"])
+
+    # Rate limit endpoints defaults
+    default_endpoints = {
+      "chat": ["30 per minute"],
+      "chat_stream": ["20 per minute"],
+      "messages": ["50 per minute"],
+      "register": ["10 per hour"],
+      "login": ["20 per minute"],
+      "root": ["10 per minute"],
+      "health": ["20 per minute"],
+    }
+
+    # Update rate limit endpoints from environment variables
+    self.RATE_LIMIT_ENDPOINTS = default_endpoints.copy()
+    for endpoint in default_endpoints:
+      env_key = f"RATE_LIMIT_{endpoint.upper()}"
+      value = parse_list_from_env(env_key)
+
+      if value:
+        self.RATE_LIMIT_ENDPOINTS[endpoint] = value
+
+
+settings = Settings()
+
