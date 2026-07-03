@@ -104,7 +104,7 @@ class Settings:
     self.ENVIRONMENT = get_environment()
 
     # Application Settings
-    self.PROJECT_NAME = os.getenv("PROJECT_NAME", "FastAPI LangGraph Template")
+    self.PROJECT_NAME = os.getenv("PROJECT_NAME", "Agentic AI Study Companion")
     self.VERSION = os.getenv("VERSION", "1.0.0")
     self.DESCRIPTION = os.getenv(
       "DESCRIPTION", "A production-ready FastAPI template with LangGraph and Langfuse integration"
@@ -115,14 +115,27 @@ class Settings:
     # CORS Settings
     self.ALLOWED_ORIGINS = parse_list_from_env("ALLOWED_ORIGINS", ["*"])
 
-    self.SUPABASE_URL = os.getenv("SUPABASE_URL", "Supabase url")
-    self.SUPABASE_PUBLISHABLE_KEY = os.getenv("SUPABASE_PUBLISHABLE_KEY", "Supabase Public Key")
-    self.SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY", "Supabase Anon Key")
+    # PostgresSQL Database Configuration
+    self.POSTGRES_HOST = os.getenv("POSTGRES_HOST", "ajabgull")
+    self.POSTGRES_DB = os.getenv("POSTGRES_DB", "ai-study-companion-db")
+    self.POSTGRES_USER = os.getenv("POSTGRES_USER", "ajabgullb")
+    self.POSTGRES_PORT = os.getenv("POSTGRES_PORT", "5432")
+    self.POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "ajabgullbhatti")
+    self.POSTGRES_POOL_SIZE = os.getenv("POSTGRES_POOL_SIZE", 5)
+    self.POSTGRES_MAX_OVERFLOW = os.getenv("POSTGRES_MAX_OVERFLOW", 10)
 
     # JWT Configuration
     self.JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "")
     self.JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
     self.JWT_ACCESS_TOKEN_EXPIRE_DAYS = int(os.getenv("JWT_ACCESS_TOKEN_EXPIRE_DAYS", "30"))
+
+    # Valkey/Redis Cache Configuration (optional — if host is set, caching is enabled)
+    self.VALKEY_HOST = os.getenv("VALKEY_HOST", "")
+    self.VALKEY_PORT = int(os.getenv("VALKEY_PORT", "6379"))
+    self.VALKEY_DB = int(os.getenv("VALKEY_DB", "0"))
+    self.VALKEY_PASSWORD = os.getenv("VALKEY_PASSWORD", "")
+    self.VALKEY_MAX_CONNECTIONS = int(os.getenv("VALKEY_MAX_CONNECTIONS", "20"))
+    self.CACHE_TTL_SECONDS = int(os.getenv("CACHE_TTL_SECONDS", "60"))
 
     # Rate Limiting Configuration
     self.RATE_LIMIT_DEFAULT = parse_list_from_env("RATE_LIMIT_DEFAULT", ["200 per day", "50 per hour"])
@@ -140,6 +153,7 @@ class Settings:
 
     # Update rate limit endpoints from environment variables
     self.RATE_LIMIT_ENDPOINTS = default_endpoints.copy()
+
     for endpoint in default_endpoints:
       env_key = f"RATE_LIMIT_{endpoint.upper()}"
       value = parse_list_from_env(env_key)

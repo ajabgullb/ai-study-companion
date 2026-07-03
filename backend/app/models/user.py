@@ -21,7 +21,7 @@ class UserBase (Base):
   full_name: str | None = Field(default=None, max_length=255)
   
 
-class User(UserBase):
+class User(Base, table=True):
   """User model for storing user accounts.
 
   Attributes:

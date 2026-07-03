@@ -1,47 +1,131 @@
-"""This file contains all of the schemas for auth"""
+"""This file contains the authentication schema for the application."""
 
-import json
+import re
+from uuid import UUID
+from datetime import datetime
 
-from app.services.supabase_client import supabase
-from app.models.user import User
-from app.utils.sanitization import (
-  sanitize_email, sanitize_string, validate_password_strength
+from pydantic import (
+  BaseModel, EmailStr, Field, SecretStr, field_validator,
 )
 
-class Auth:
-  """Auth class for authentication"""
+from app.schemas.base import BaseResponse
 
-  async def create_user (self, email, full_name, password, username):
-    sanitized_email = sanitize_email (email=email)
-    sanitized_name = sanitize_string (full_name)
-    sanitized_username = sanitize_string (username)
+class Token(BaseModel):
+  """Token model for authentication.
 
-    if not validate_password_strength(password):
-      raise ValueError(
-        "Password must be at least 8 characters and include "
-        "uppercase, lowercase, a digit, and a special character."
-      )
+  Attributes:
+    access_token: The JWT access token.
+    token_type: The type of token (always "bearer").
+    expires_at: The token expiration timestamp.
+  """
 
-    hashed_password = User.hash_password(password=password)
+  access_token: str = Field(..., description="The JWT access token")
+  token_type: str = Field(default="bearer", description="The type of token")
+  expires_at: datetime = Field(..., description="The token expiration timestamp")
 
-    user = User(
-      email=sanitized_email,
-      full_name=sanitized_name,
-      hashed_password=hashed_password,
-      username=sanitized_username
-    )
 
-    json_user = json.dumps(user.__dict__, indent=4)
+class TokenResponse(BaseResponse):
+  """Response model for login endpoint.
 
-    try:
-      response = await (
-        supabase.table("users")
-        .insert(json_user)
-        .execute()
-      )
+  Attributes:
+    access_token: The JWT access token
+    token_type: The type of token (always "bearer")
+    expires_at: When the token expires
+  """
 
-    except Exception as exc:
-      raise ValueError(
-        f"Database insert failed: {exc}"
-      ) from exc
+  access_token: str = Field(..., description="The JWT access token")
+  token_type: str = Field(default="bearer", description="The type of token")
+  expires_at: datetime = Field(..., description="When the token expires")
+
+
+class UserCreate(BaseModel):
+  """Request model for user registration.
+
+  Attributes:
+    email: User's email address
+    password: User's password
+    username: Optional display name
+  """
+
+  email: EmailStr = Field(..., description="User's email address")
+  password: str = Field(..., description="User's password", min_length=8, max_length=64)
+  username: str | None = Field(default=None, description="Optional display name", max_length=50)
+
+  @field_validator("password")
+  @classmethod
+  def validate_password(cls, password: str) -> str:
+    """Validate password strength.
+
+    Args:
+      v: The password to validate
+
+    Returns:
+      SecretStr: The validated password
+
+    Raises:
+      ValueError: If the password is not strong enough
+    """
+
+    # Check for common password requirements
+    if len(password) < 8:
+      raise ValueError("Password must be at least 8 characters long")
+
+    if not re.search(r"[A-Z]", password):
+      raise ValueError("Password must contain at least one uppercase letter")
+
+    if not re.search(r"[a-z]", password):
+      raise ValueError("Password must contain at least one lowercase letter")
+
+    if not re.search(r"[0-9]", password):
+      raise ValueError("Password must contain at least one number")
+
+    if not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
+      raise ValueError("Password must contain at least one special character")
+
+    return password
+
+
+class UserResponse(BaseResponse):
+  """Response model for user operations.
+
+  Attributes:
+    id: User's ID
+    email: User's email address
+    username: Optional display name
+    token: Authentication token
+  """
+
+  id: UUID = Field(..., description="User's ID")
+  email: str = Field(..., description="User's email address")
+  username: str | None = Field(default=None, description="Optional display name")
+  token: Token = Field(..., description="Authentication token")
+
+
+class SessionResponse(BaseResponse):
+  """Response model for session creation.
+
+  Attributes:
+    session_id: The unique identifier for the chat session
+    name: Name of the session (defaults to empty string)
+    token: The authentication token for the session
+  """
+
+  session_id: str = Field(..., description="The unique identifier for the chat session")
+  name: str = Field(default="", description="Name of the session", max_length=100)
+  token: Token = Field(..., description="The authentication token for the session")
+
+  @field_validator("name")
+  @classmethod
+  def sanitize_name(cls, v: str) -> str:
+    """Sanitize the session name.
+
+    Args:
+      v: The name to sanitize
+
+    Returns:
+      str: The sanitized name
+    """
+    # Remove any potentially harmful characters
+    sanitized = re.sub(r'[<>{}[\]()\'"`]', "", v)
+    return sanitized
 
