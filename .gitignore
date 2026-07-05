@@ -1,19 +1,25 @@
-# Python
-backend/venv/
-backend/__pycache__/
-backend/.pytest_cache/
-*.pyc
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+*.jsonl
 
-# Node
-frontend/node_modules/
-frontend/dist/
+# Virtual environments
+.venv
 
-# Env
+# Environment variables
 .env
-**/.env
-*.env.local
+.env.development
+.env.staging
+.env.production
 
-# OS
-.DS_Store
+# Misc
+*.ipynb
+
+# Reports
+evals/reports/
 
 
