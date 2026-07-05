@@ -116,10 +116,10 @@ class Settings:
     self.ALLOWED_ORIGINS = parse_list_from_env("ALLOWED_ORIGINS", ["*"])
 
     # PostgresSQL Database Configuration
-    self.POSTGRES_HOST = os.getenv("POSTGRES_HOST", "ajabgull")
+    self.POSTGRES_HOST = os.getenv("POSTGRES_HOST", "localhost")
     self.POSTGRES_DB = os.getenv("POSTGRES_DB", "ai-study-companion-db")
     self.POSTGRES_USER = os.getenv("POSTGRES_USER", "ajabgullb")
-    self.POSTGRES_PORT = os.getenv("POSTGRES_PORT", "5432")
+    self.POSTGRES_PORT = os.getenv("POSTGRES_PORT", "5433")
     self.POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "ajabgullbhatti")
     self.POSTGRES_POOL_SIZE = os.getenv("POSTGRES_POOL_SIZE", 5)
     self.POSTGRES_MAX_OVERFLOW = os.getenv("POSTGRES_MAX_OVERFLOW", 10)
@@ -128,6 +128,15 @@ class Settings:
     self.JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "")
     self.JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
     self.JWT_ACCESS_TOKEN_EXPIRE_DAYS = int(os.getenv("JWT_ACCESS_TOKEN_EXPIRE_DAYS", "30"))
+
+    # Logging Configuration
+    self.LOG_DIR = Path(os.getenv("LOG_DIR", "logs"))
+    self.LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
+    self.LOG_FORMAT = os.getenv("LOG_FORMAT", "json")  # "json" or "console"
+
+    # Profiling Configuration (DEBUG only)
+    self.PROFILING_DIR = Path(os.getenv("PROFILING_DIR", "/tmp/fastapi_profiles"))
+    self.PROFILING_THRESHOLD_SECONDS = float(os.getenv("PROFILING_THRESHOLD_SECONDS", "2.0"))
 
     # Valkey/Redis Cache Configuration (optional — if host is set, caching is enabled)
     self.VALKEY_HOST = os.getenv("VALKEY_HOST", "")
