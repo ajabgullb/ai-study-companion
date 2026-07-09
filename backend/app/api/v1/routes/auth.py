@@ -6,8 +6,10 @@ and token verification.
 import uuid
 from uuid import UUID
 
+from typing import List
+
 from fastapi import (
-  APIRouter, HTTPException, Request, Form, Depends
+  APIRouter, HTTPException, Request, Form, Depends, status
 )
 from fastapi.security import (
   HTTPAuthorizationCredentials, HTTPBearer
@@ -270,7 +272,7 @@ async def create_session(request: Request, user: User = Depends(get_current_user
     raise HTTPException(status_code=422, detail=str(ve))
 
 
-@router.delete("/session/{session_id}")
+@router.delete("/session/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_session(session_id: str, current_session: ChatSession = Depends(get_current_session)):
   """Delete a session for the authenticated user.
 
@@ -300,7 +302,7 @@ async def delete_session(session_id: str, current_session: ChatSession = Depends
     raise HTTPException(status_code=422, detail=str(ve))
 
 
-@router.patch("/sessions", response_model=SessionResponse)
+@router.get("/sessions", response_model=List[SessionResponse])
 async def get_user_sessions (user: User = Depends(get_current_user)):
   """Get all session IDs for the authenticated user.
 
