@@ -121,8 +121,8 @@ class Settings:
     self.POSTGRES_USER = os.getenv("POSTGRES_USER", "ajabgullb")
     self.POSTGRES_PORT = os.getenv("POSTGRES_PORT", "5433")
     self.POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "ajabgullbhatti")
-    self.POSTGRES_POOL_SIZE = os.getenv("POSTGRES_POOL_SIZE", 5)
-    self.POSTGRES_MAX_OVERFLOW = os.getenv("POSTGRES_MAX_OVERFLOW", 10)
+    self.POSTGRES_POOL_SIZE = int(os.getenv("POSTGRES_POOL_SIZE", "5"))
+    self.POSTGRES_MAX_OVERFLOW = int(os.getenv("POSTGRES_MAX_OVERFLOW", "10"))
 
     # JWT Configuration
     self.JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "")
@@ -156,6 +156,7 @@ class Settings:
       "messages": ["50 per minute"],
       "register": ["10 per hour"],
       "login": ["20 per minute"],
+      "session": ["30 per minute"],
       "root": ["10 per minute"],
       "health": ["20 per minute"],
     }
@@ -172,4 +173,3 @@ class Settings:
 
 
 settings = Settings()
-

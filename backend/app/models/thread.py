@@ -1,12 +1,11 @@
 """This file contains the thread model for the application."""
 
 from uuid import UUID, uuid4
-from app.models.base import Base
 
 from sqlmodel import Field, SQLModel
 
 
-class Thread(Base):
+class Thread(SQLModel):
   """Thread model for storing conversation threads.
 
   Attributes:

@@ -1,18 +1,19 @@
 """This file contains the database service for the application."""
 
+from uuid import UUID
+
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator, Optional
 
+from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import (
+  AsyncSession, async_sessionmaker, create_async_engine
+)
+
 from app.core.config import settings
 from app.core.logging import logger
-
-from app.models.user import User
-
-from sqlalchemy.ext.asyncio import (
-  create_async_engine, AsyncSession, async_sessionmaker
-)
-from sqlalchemy.exc import SQLAlchemyError, IntegrityError
-from sqlalchemy import select
+from app.models.database import ChatSession, User
 
 class DatabaseService:
   """Service class for database operations.
@@ -35,7 +36,7 @@ class DatabaseService:
       self.engine = create_async_engine(
         url=connection_url,
         pool_size=pool_size,
-        max_overflow= max_overflow,
+        max_overflow=max_overflow,
         pool_timeout=30,
         pool_recycle=1800,
       )
@@ -47,11 +48,28 @@ class DatabaseService:
         autoflush=False,
       )
 
-      logger.info("Database Intialized!")
+      logger.info("database_initialized")
 
-    except SQLAlchemyError as e:
-      logger.error(f"Database Initialization Error: {e}")
+    except SQLAlchemyError:
+      logger.exception("database_initialization_failed")
       raise
+
+  @asynccontextmanager
+  async def session_scope (self) -> AsyncGenerator[AsyncSession, None]:
+    """Yield a database session, committing on success and rolling back on error."""
+
+    async with self.session_maker() as session:
+      try:
+        yield session
+        await session.commit()
+
+      except SQLAlchemyError:
+        await session.rollback()
+        logger.exception("database_session_failed")
+        raise
+
+      finally:
+        await session.close()
 
   async def create_user (self, email: str, password: str, username: str | None):
     """Create a new user.
@@ -65,15 +83,30 @@ class DatabaseService:
       User: The created user
     """
 
-    async with self.get_session() as session:
+    async with self.session_scope() as session:
       user = User(email=email, hashed_password=password, username=username)
 
       session.add(user)
-      await session.commit()
+      await session.flush()
       await session.refresh(user)
 
-      logger.info("User Created!")
+      logger.info("user_created", user_id=user.user_id)
       return user
+  
+  async def get_user (self, user_id: UUID) -> Optional[User]:
+    """Get a user by ID.
+
+    Args:
+      user_id: The ID of the user to retrieve
+
+    Returns:
+      Optional[User]: The user if found, None otherwise
+    """
+
+    async with self.session_maker() as session:
+      statement = select(User).where(User.user_id == user_id)
+      result = await session.execute(statement)
+      return result.scalars().first()
 
   async def get_user_by_email(self, email: str) -> Optional[User]:
     """Get a user by email.
@@ -90,21 +123,135 @@ class DatabaseService:
       result = await session.execute(statement)
       return result.scalars().one_or_none()
 
-  @asynccontextmanager
-  async def get_session (self) -> AsyncGenerator[AsyncSession, None]:
-    """Yield a database session, committing on success and rolling back on error."""
+  async def get_session(self, session_id: UUID) -> Optional[ChatSession]:
+    """Get a chat session by its session ID.
+
+    Args:
+      session_id: The UUID of the session to retrieve
+
+    Returns:
+      Optional[ChatSession]: The session if found, None otherwise
+    """
 
     async with self.session_maker() as session:
-      try:
-        yield session
-        await session.commit()
+      statement = select(ChatSession).where(ChatSession.session_id == session_id)
+      result = await session.execute(statement)
+      return result.scalars().first()
+  
+  async def create_session (
+    self,
+    session_id: UUID,
+    user_id: UUID,
+    username: str | None,
+    name: str = "",
+  ) -> ChatSession:
+    """Create a new chat session.
 
-      except SQLAlchemyError as e:
-        logger.error(f"Database session error: {e}")
-        raise
+    Args:
+      session_id: The ID for the new session
+      user_id: The ID of the user who owns the session
+      username: Display name copied from the user for LLM personalization
+      name: Optional name for the session (defaults to empty string)
 
-      finally:
-        await session.close()
+    Returns:
+      ChatSession: The created session
+    """
+
+    async with self.session_scope() as session:
+      chat_session = ChatSession(
+        session_id=session_id,
+        user_id=user_id,
+        username=username,
+        name=name,
+      )
+
+      session.add(chat_session)
+      await session.flush()
+      await session.refresh(chat_session)
+
+      logger.info(
+        "session_created",
+        session_id=chat_session.session_id,
+        user_id=chat_session.user_id,
+        name=chat_session.name,
+      )
+      return chat_session
+
+  async def delete_session(self, session_id: UUID, user_id: UUID) -> bool:
+    """Delete a chat session owned by a user.
+
+    Args:
+      session_id: The ID of the session to delete
+      user_id: The ID of the user who owns the session
+
+    Returns:
+      bool: True if a session was deleted, False otherwise
+    """
+
+    async with self.session_scope() as session:
+      statement = select(ChatSession).where(
+        ChatSession.session_id == session_id,
+        ChatSession.user_id == user_id,
+      )
+      result = await session.execute(statement)
+      chat_session = result.scalars().one_or_none()
+
+      if chat_session is None:
+        return False
+
+      await session.delete(chat_session)
+      logger.info("session_deleted", session_id=session_id, user_id=user_id)
+      return True
+
+  async def get_user_sessions(self, user_id: UUID) -> list[ChatSession]:
+    """Get all chat sessions for a user.
+
+    Args:
+      user_id: The ID of the user who owns the sessions
+
+    Returns:
+      list[ChatSession]: The user's sessions ordered by newest first
+    """
+
+    async with self.session_maker() as session:
+      statement = (
+        select(ChatSession)
+        .where(ChatSession.user_id == user_id)
+        .order_by(ChatSession.created_at.desc())
+      )
+      result = await session.execute(statement)
+      return list(result.scalars().all())
+
+  async def update_session_name(self, session_id: UUID, user_id: UUID, name: str) -> Optional[ChatSession]:
+    """Update the name for a chat session owned by a user.
+
+    Args:
+      session_id: The ID of the session to update
+      user_id: The ID of the user who owns the session
+      name: The new session name
+
+    Returns:
+      Optional[ChatSession]: The updated session if found, None otherwise
+    """
+
+    async with self.session_scope() as session:
+      statement = select(ChatSession).where(
+        ChatSession.session_id == session_id,
+        ChatSession.user_id == user_id,
+      )
+      result = await session.execute(statement)
+      chat_session = result.scalars().one_or_none()
+
+      if chat_session is None:
+        return None
+
+      chat_session.name = name
+      session.add(chat_session)
+      await session.flush()
+      await session.refresh(chat_session)
+
+      logger.info("session_name_updated", session_id=session_id, user_id=user_id)
+      return chat_session
 
   async def health_check(self) -> bool:
     """Check database connection health.
@@ -119,11 +266,10 @@ class DatabaseService:
         result = await session.execute(select(1))
         result.first()
         return True
-    except Exception as e:
-      logger.error(f"database_health_check_failed {e}")
+    except Exception:
+      logger.exception("database_health_check_failed")
       return False
 
 
 # Create a singleton instance
 database_service = DatabaseService()
-
