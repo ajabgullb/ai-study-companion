@@ -115,6 +115,26 @@ class Settings:
     # CORS Settings
     self.ALLOWED_ORIGINS = parse_list_from_env("ALLOWED_ORIGINS", ["*"])
 
+    # Langfuse Configuration
+    self.LANGFUSE_TRACING_ENABLED = os.getenv("LANGFUSE_TRACING_ENABLED", "true").lower() in (
+      "true",
+      "1",
+      "t",
+      "yes",
+    )
+    self.LANGFUSE_PUBLIC_KEY = os.getenv("LANGFUSE_PUBLIC_KEY", "")
+    self.LANGFUSE_SECRET_KEY = os.getenv("LANGFUSE_SECRET_KEY", "")
+    self.LANGFUSE_HOST = os.getenv("LANGFUSE_HOST", "https://cloud.langfuse.com")
+
+    # LangGraph Configuration
+    self.OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+    self.DEFAULT_LLM_MODEL = os.getenv("DEFAULT_LLM_MODEL", "gpt-5-mini")
+    self.SESSION_NAMING_ENABLED = os.getenv("SESSION_NAMING_ENABLED", "true").lower() == "true"
+    self.DEFAULT_LLM_TEMPERATURE = float(os.getenv("DEFAULT_LLM_TEMPERATURE", "0.2"))
+    self.MAX_TOKENS = int(os.getenv("MAX_TOKENS", "2000"))
+    self.MAX_LLM_CALL_RETRIES = int(os.getenv("MAX_LLM_CALL_RETRIES", "3"))
+    self.LLM_TOTAL_TIMEOUT = int(os.getenv("LLM_TOTAL_TIMEOUT", "60"))
+
     # PostgresSQL Database Configuration
     self.POSTGRES_HOST = os.getenv("POSTGRES_HOST", "localhost")
     self.POSTGRES_DB = os.getenv("POSTGRES_DB", "ai-study-companion-db")
