@@ -135,6 +135,11 @@ class Settings:
     self.MAX_LLM_CALL_RETRIES = int(os.getenv("MAX_LLM_CALL_RETRIES", "3"))
     self.LLM_TOTAL_TIMEOUT = int(os.getenv("LLM_TOTAL_TIMEOUT", "60"))
 
+    # Long term memory Configuration
+    self.LONG_TERM_MEMORY_MODEL = os.getenv("LONG_TERM_MEMORY_MODEL", "gpt-5-nano")
+    self.LONG_TERM_MEMORY_EMBEDDER_MODEL = os.getenv("LONG_TERM_MEMORY_EMBEDDER_MODEL", "text-embedding-3-small")
+    self.LONG_TERM_MEMORY_COLLECTION_NAME = os.getenv("LONG_TERM_MEMORY_COLLECTION_NAME", "longterm_memory")
+
     # PostgresSQL Database Configuration
     self.POSTGRES_HOST = os.getenv("POSTGRES_HOST", "localhost")
     self.POSTGRES_DB = os.getenv("POSTGRES_DB", "ai-study-companion-db")

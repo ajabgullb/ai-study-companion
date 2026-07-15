@@ -5,7 +5,7 @@ from uuid import UUID
 from datetime import datetime
 
 from pydantic import (
-  BaseModel, EmailStr, Field, SecretStr, field_validator,
+  BaseModel, EmailStr, Field, field_validator,
 )
 
 from app.schemas.base import BaseResponse
